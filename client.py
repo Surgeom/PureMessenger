@@ -58,4 +58,5 @@ def clients_sock(message=''):
     s.close()
 
 
-clients_sock('fdfdfdg')
+if __name__ == '__main__':
+    clients_sock('fdfdfdg')

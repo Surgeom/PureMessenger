@@ -56,4 +56,6 @@ def runserver():
             client.close()
 
 
-runserver()
+if __name__ == '__main__':
+    # runserver()
+    print(process_client_message({ USER: {ACCOUNT_NAME: 'Guest'}}))
