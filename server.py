@@ -5,7 +5,7 @@ from common.variables import DEFAULT_PORT, ENCODING, MAX_CONNECTIONS, ACTION, PR
 from common.utils import get_message, send_message
 import json
 import logging
-
+from log import server_log_config
 
 SERVER_LOGGER = logging.getLogger('server')
 

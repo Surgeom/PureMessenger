@@ -5,7 +5,7 @@ DEFAULT_IP_ADDRESS = '127.0.0.1'
 MAX_CONNECTIONS = 5
 MAX_PACKAGE_LEN = 1024
 ENCODING = 'utf-8'
-LOGGING_LEVEL = logging.DEBUG
+LOGGING_LEVEL = logging.INFO
 """Protocol JIM"""
 ACTION = 'action'
 TIME = 'time'

@@ -6,7 +6,7 @@ import time
 import sys
 import json
 import logging
-
+from log import client_log_config
 CLIENT_LOGGER = logging.getLogger('client')
 
 
