@@ -4,9 +4,14 @@ from common.variables import DEFAULT_PORT, ENCODING, MAX_CONNECTIONS, ACTION, PR
     RESPONSE, ERROR
 from common.utils import get_message, send_message
 import json
+import logging
+
+
+SERVER_LOGGER = logging.getLogger('server')
 
 
 def process_client_message(message):
+    SERVER_LOGGER.debug(f'Message rom client : {message}')
     if ACTION in message and message[ACTION] == PRESENCE and TIME in message \
             and USER in message and message[USER][ACCOUNT_NAME] == 'Guest':
         return {RESPONSE: 200}
@@ -22,32 +27,32 @@ def runserver():
             port = int(sys.argv[sys.argv.index('-p') + 1])
             address = sys.argv[sys.argv.index('-a') + 1]
             if port < 1024 or port > 65535:
+                SERVER_LOGGER.error(f'Bad port = {port}')
                 raise ValueError
         else:
             port = DEFAULT_PORT
             address = ''
     except IndexError as e:
-        print(e)
+        SERVER_LOGGER.error(f'{e}')
         sys.exit(1)
     except ValueError as e:
-        print(e)
-        print(
-            'В качастве порта может быть указано только число в диапазоне от 1024 до 65535.')
+        SERVER_LOGGER.error(f'В качастве порта может быть указано только число в диапазоне от 1024 до 65535.{e}')
         sys.exit(1)
 
     s = socket(AF_INET, SOCK_STREAM)
     s.bind((address, port))
     s.listen(MAX_CONNECTIONS)
+    SERVER_LOGGER.info(f' Run server on port = {port}')
     while True:
         client, addr = s.accept()
         try:
             data = get_message(client)
-            print(data)
+            SERVER_LOGGER.info(f'{data}')
             msg = process_client_message(data)
             send_message(client, msg)
             client.close()
         except (ValueError, json.JSONDecodeError):
-            print('Принято некорретное сообщение от клиента.')
+            SERVER_LOGGER.error(f'Bad message {data}')
             msg = {
                 RESPONSE: 400,
                 ERROR: 'Bad Request'
@@ -57,5 +62,4 @@ def runserver():
 
 
 if __name__ == '__main__':
-    # runserver()
-    print(process_client_message({ USER: {ACCOUNT_NAME: 'Guest'}}))
+    runserver()

@@ -5,6 +5,9 @@ from common.utils import send_message, get_message
 import time
 import sys
 import json
+import logging
+
+CLIENT_LOGGER = logging.getLogger('client')
 
 
 def create_presence(account_name='Guest', msg=''):
@@ -23,6 +26,7 @@ def process_ans(message):
     if RESPONSE in message:
         if message[RESPONSE] == 200:
             return '200 : OK'
+        CLIENT_LOGGER.error(f'400 : {message[ERROR]}')
         return f'400 : {message[ERROR]}'
     raise ValueError
 
@@ -33,16 +37,16 @@ def clients_sock(message=''):
             ip_addr = sys.argv[1]
             port = int(sys.argv[2])
             if port < 1024 or port > 65535:
+                CLIENT_LOGGER.error(f'Bad port = {port}')
                 raise ValueError
         else:
             ip_addr = DEFAULT_IP_ADDRESS
             port = DEFAULT_PORT
     except IndexError as e:
-        print(e)
+        CLIENT_LOGGER.error(f'{e}')
         sys.exit(1)
     except ValueError as e:
-        print(e)
-        print('В качестве порта может быть указано только число в диапазоне от 1024 до 65535.')
+        CLIENT_LOGGER.error(f'В качастве порта может быть указано только число в диапазоне от 1024 до 65535.{e}')
         sys.exit(1)
 
     s = socket(AF_INET, SOCK_STREAM)
@@ -52,9 +56,10 @@ def clients_sock(message=''):
     # data = get_message(s)
     try:
         answer = process_ans(get_message(s))
-        print(answer)
+        CLIENT_LOGGER.info(f' server response {answer}')
     except (ValueError, json.JSONDecodeError):
-        print('Не удалось декодировать сообщение сервера.')
+        CLIENT_LOGGER.error('Не удалось декодировать сообщение сервера.')
+
     s.close()
 
 
