@@ -6,10 +6,12 @@ from common.utils import get_message, send_message
 import json
 import logging
 from log import server_log_config
+from decorators import log
 
 SERVER_LOGGER = logging.getLogger('server')
 
 
+@log
 def process_client_message(message):
     SERVER_LOGGER.debug(f'Message rom client : {message}')
     if ACTION in message and message[ACTION] == PRESENCE and TIME in message \

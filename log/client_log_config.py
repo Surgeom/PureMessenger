@@ -15,8 +15,8 @@ sh_logger = logging.StreamHandler(sys.stdout)
 sh_logger.setFormatter(formatter)
 logger.handlers.clear()
 logger.addHandler(sh_logger)
-fh = logging.handlers.TimedRotatingFileHandler(PATH)
-fh.setLevel(logging.DEBUG)
+fh = logging.handlers.TimedRotatingFileHandler(PATH, encoding='utf8', interval=1, when='D')
+fh.setLevel(LOGGING_LEVEL)
 logger.addHandler(fh)
 
 if __name__ == '__main__':
