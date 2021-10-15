@@ -1,7 +1,8 @@
 import sys
+
 sys.path.append('..')
 import logging
-from log import client_log_config, server_log_config
+from common import client_log_config, server_log_config
 import traceback
 import inspect
 
@@ -19,7 +20,7 @@ def log(func):
         LOGGER.debug(f'Была вызвана функция {func.__name__} c параметрами {args}, {kwargs}. '
                      f'Вызов из модуля {func.__module__}. Вызов из'
                      f' функции {traceback.format_stack()[0].strip().split()[-1]}.'
-                     f'Вызов из функции {inspect.stack()[1][3]}')
+                     f'Вызов из функции {inspect.stack()[1][3]}', stacklevel=2)
         return f
 
     return wrapper
