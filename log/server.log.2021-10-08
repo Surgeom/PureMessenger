@@ -1,5 +1,0 @@
-2021-10-08 00:26:50,510 - INFO  - server -  Run server on port = 7777
-2021-10-08 00:27:07,255 - INFO  - server -  Run server on port = 7777
-2021-10-08 00:27:13,952 - INFO  - server - {'action': 'presense', 'time': 1633642033.9519835, 'user': {'account_name': 'Guest'}, 'DATA': 'fdfdfdg'}
-2021-10-08 00:27:13,952 - DEBUG  - server - Message rom client : {'action': 'presense', 'time': 1633642033.9519835, 'user': {'account_name': 'Guest'}, 'DATA': 'fdfdfdg'}
-2021-10-08 00:27:13,955 - DEBUG  - server - Была вызвана функция process_client_message c параметрами ({'action': 'presense', 'time': 1633642033.9519835, 'user': {'account_name': 'Guest'}, 'DATA': 'fdfdfdg'},), {}. Вызов из модуля __main__. Вызов из функции runserver().Вызов из функции runserver

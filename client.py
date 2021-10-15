@@ -2,27 +2,24 @@ import logging
 from common import client_log_config
 from socket import socket, AF_INET, SOCK_STREAM
 from common.variables import DEFAULT_PORT, DEFAULT_IP_ADDRESS, ACTION, PRESENCE, TIME, USER, ACCOUNT_NAME, RESPONSE, \
-    ERROR, MESSAGE, MESSAGE_TEXT, SENDER
+    ERROR, MESSAGE, MESSAGE_TEXT, SENDER, DESTINATION, EXIT
 from common.utils import send_message, get_message
 import time
 import sys
 import json
 import argparse
+import threading
 
 CLIENT_LOGGER = logging.getLogger('client')
 
 
-def create_presence(account_name='Guest', msg=''):
-    if msg:
+def create_presence(account_name='Guest', exitmmsg=''):
+    if exitmmsg and exitmmsg == 'exit':
         out = {
-            ACTION: MESSAGE,
+            ACTION: EXIT,
             TIME: time.time(),
-            USER: {
-                ACCOUNT_NAME: account_name
-            },
-            MESSAGE_TEXT: msg
+            ACCOUNT_NAME: account_name
         }
-        print('+++++')
     else:
         out = {
             ACTION: PRESENCE,
@@ -43,26 +40,51 @@ def process_ans(message):
     raise ValueError
 
 
-def message_from_server(message):
-    if ACTION in message and message[ACTION] == MESSAGE and \
-            SENDER in message and MESSAGE_TEXT in message:
-        print(f'Получено сообщение от пользователя '
-              f'{message[SENDER]}:\n{message[MESSAGE_TEXT]}')
-        CLIENT_LOGGER.info(f'Получено сообщение от пользователя '
-                           f'{message[SENDER]}:\n{message[MESSAGE_TEXT]}')
-    else:
-        CLIENT_LOGGER.error(f'Получено некорректное сообщение с сервера: {message}')
+def message_from_server(sock, username):
+    while True:
+        try:
+            message = get_message(sock)
+            if ACTION in message and message[ACTION] == MESSAGE:
+                # SENDER in message and MESSAGE_TEXT in message:
+                print(f'Получено сообщение от пользователя '
+                      f'{message[SENDER]}:\n{message[MESSAGE_TEXT]}')
+                CLIENT_LOGGER.info(f'Получено сообщение от пользователя '
+                                   f'{message[SENDER]}:\n{message[MESSAGE_TEXT]}')
+            else:
+                CLIENT_LOGGER.debug(f'Получено некорректное сообщение с сервера: {message}')
+        except (OSError, ConnectionError, ConnectionAbortedError,
+                ConnectionResetError, json.JSONDecodeError):
+            CLIENT_LOGGER.critical(f'Потеряно соединение с сервером.')
+            break
+
+
+def create_message(sock, account_name='Guest'):
+    while True:
+        to_user = input('Введите получателя сообщения: ')
+        message = input('Введите сообщение для отправки: ')
+        message_dict = {
+            ACTION: MESSAGE,
+            SENDER: account_name,
+            DESTINATION: to_user,
+            TIME: time.time(),
+            MESSAGE_TEXT: message
+        }
+        CLIENT_LOGGER.debug(f'Сформирован словарь сообщения: {message_dict}')
+        try:
+            send_message(sock, message_dict)
+            CLIENT_LOGGER.info(f'Отправлено сообщение для пользователя {to_user}')
+        except:
+            CLIENT_LOGGER.critical('Потеряно соединение с сервером.')
+            sys.exit(1)
 
 
 def arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('addr', default=DEFAULT_IP_ADDRESS, nargs='?')
     parser.add_argument('port', default=DEFAULT_PORT, type=int, nargs='?')
-    parser.add_argument('-m', '--mode', default='listen', nargs='?')
     namespace = parser.parse_args(sys.argv[1:])
     server_address = namespace.addr
     server_port = namespace.port
-    client_mode = namespace.mode
 
     if not 1023 < server_port < 65536:
         CLIENT_LOGGER.critical(
@@ -70,28 +92,43 @@ def arg_parser():
             f'Допустимы адреса с 1024 до 65535. Клиент завершается.')
         sys.exit(1)
 
-    if client_mode not in ('listen', 'send'):
-        CLIENT_LOGGER.critical(f'Указан недопустимый режим работы {client_mode}, '
-                               f'допустимые режимы: listen , send')
-        sys.exit(1)
+    return server_address, server_port
 
-    return server_address, server_port, client_mode
+
+def light_gui_for_client(sock, username):
+    print(f'Hi {username}!')
+    create_presence(account_name=username)
+    while True:
+        command = input('Введите команду(sendmes /exit):  ')
+        if command == 'sendmes':
+            create_message(sock, username)
+
+        elif command == 'exit':
+            send_message(sock, create_presence(username, exitmmsg='exit'))
+            print('Завершение соединения.')
+            CLIENT_LOGGER.info('Завершение работы по команде пользователя.')
+            # Задержка неоходима, чтобы успело уйти сообщение о выходе
+            time.sleep(0.5)
+            break
+        else:
+            print('Команда не распознана, попробойте снова.')
 
 
 def clients_sock():
-    ip_addr, port, client_mode = arg_parser()
+    client_name = input("Введите ваще имя ")
+    ip_addr, port = arg_parser()
     CLIENT_LOGGER.info(
         f'Запущен клиент с парамертами: адрес сервера: {ip_addr}, '
-        f'порт: {port}, режим работы: {client_mode}')
+        f'порт: {port}')
     try:
         user_sock = socket(AF_INET, SOCK_STREAM)
         user_sock.connect((ip_addr, port))
-        send_message(user_sock, create_presence())
+        send_message(user_sock, create_presence(client_name))
         answer = process_ans(get_message(user_sock))
         CLIENT_LOGGER.info(f'Установлено соединение с сервером. Ответ сервера: {answer}')
         print(f'Установлено соединение с сервером.')
     except json.JSONDecodeError:
-        CLIENT_LOGGER.error('Не удалось декодировать полученную Json строку.')
+        CLIENT_LOGGER.error('Не удалось декодировать полученную JSON строку.')
         sys.exit(1)
     except ConnectionRefusedError:
         CLIENT_LOGGER.critical(
@@ -101,41 +138,17 @@ def clients_sock():
     except Exception as e:
         print(e)
     else:
-        if client_mode == 'send':
-            print('Режим работы - отправка сообщений.')
-        else:
-            print('Режим работы - приём сообщений.')
+        receiver = threading.Thread(target=message_from_server, args=(user_sock, client_name), daemon=True)
+        receiver.start()
 
-    while True:
-        if client_mode == 'send':
-            try:
-                msg = input('введите сообщение  ')
-                if msg == 'exit':
-                    break
-                send_message(user_sock, create_presence(msg=msg))
-            except (ConnectionResetError, ConnectionError, ConnectionAbortedError):
-                CLIENT_LOGGER.error(f'Соединение с сервером {ip_addr} было потеряно.')
-                sys.exit(1)
-        if client_mode == 'listen':
-            try:
-                message_from_server(get_message(user_sock))
-            except (ConnectionResetError, ConnectionError, ConnectionAbortedError):
-                CLIENT_LOGGER.error(f'Соединение с сервером {ip_addr} было потеряно.')
-                sys.exit(1)
-
-    # while True:
-    #     s = socket(AF_INET, SOCK_STREAM)
-    #     s.connect((ip_addr, port))
-
-    # msg = input('Ваше сообщение: ')
-    # if msg == 'exit':
-    #     break
-    # send_message(s, create_presence(msg=msg))
-    # try:
-    #     answer = process_ans(get_message(s))
-    #     CLIENT_LOGGER.info(f' server response {answer}')
-    # except (ValueError, json.JSONDecodeError):
-    #     CLIENT_LOGGER.error('Не удалось декодировать сообщение сервера.')
+        user_interface = threading.Thread(target=light_gui_for_client, args=(user_sock, client_name), daemon=True)
+        user_interface.start()
+        CLIENT_LOGGER.debug('Запущены процессы')
+        while True:
+            time.sleep(1)
+            if receiver.is_alive() and user_interface.is_alive():
+                continue
+            break
 
 
 if __name__ == '__main__':
